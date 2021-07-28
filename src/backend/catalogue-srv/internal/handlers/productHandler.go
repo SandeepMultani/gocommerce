@@ -26,7 +26,10 @@ func (hdl *productHandler) Get(c *gin.Context) {
 	id := c.Param("id")
 	product, err := hdl.productSrv.Get(id)
 	if err != nil {
-		c.JSON(500, err.Error())
+		c.JSON(404, httpErrorResponse{
+			Message: err.Error(),
+			Code:    404,
+		})
 		return
 	}
 	c.JSON(200, product)
@@ -36,8 +39,16 @@ func (hdl *productHandler) GetBySku(c *gin.Context) {
 	sku := c.Query("sku")
 	product, err := hdl.productSrv.GetBySku(sku)
 	if err != nil {
-		c.JSON(500, err.Error())
+		c.JSON(404, httpErrorResponse{
+			Message: err.Error(),
+			Code:    404,
+		})
 		return
 	}
 	c.JSON(200, product)
+}
+
+type httpErrorResponse struct {
+	Message string
+	Code    int
 }
