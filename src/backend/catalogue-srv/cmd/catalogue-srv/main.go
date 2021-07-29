@@ -21,5 +21,8 @@ func main() {
 		v1product.GET("/:id", productHandler.Get)
 	}
 
-	router.Run(":5001")
+	err := router.Run(":5001")
+	if err != nil {
+		panic(err)
+	}
 }

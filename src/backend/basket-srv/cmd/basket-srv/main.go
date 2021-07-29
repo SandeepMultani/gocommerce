@@ -25,5 +25,8 @@ func main() {
 		v1basket.DELETE("/:basketId/product/:productId", basketHandler.RemoveItem)
 	}
 
-	router.Run(":5002")
+	err := router.Run(":5002")
+	if err != nil {
+		panic(err)
+	}
 }
