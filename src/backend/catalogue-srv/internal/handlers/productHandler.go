@@ -32,7 +32,7 @@ func (hdl *productHandler) Get(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(200, product)
+	c.JSON(200, &product)
 }
 
 func (hdl *productHandler) GetBySku(c *gin.Context) {
