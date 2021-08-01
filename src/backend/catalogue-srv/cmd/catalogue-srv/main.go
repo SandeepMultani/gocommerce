@@ -9,7 +9,11 @@ import (
 
 func main() {
 
-	productRepository := repositories.NewProductRepository()
+	catalogueCollection, err := repositories.GetCatalogueCollection()
+	if err != nil {
+		panic(err)
+	}
+	productRepository := repositories.NewProductRepository(catalogueCollection)
 	productSrv := product.NewProductService(productRepository)
 	productHandler := handlers.NewProductHandler(productSrv)
 
@@ -23,7 +27,7 @@ func main() {
 		v1.GET("/product/:id", productHandler.GetById)
 	}
 
-	err := router.Run(":5001")
+	err = router.Run(":5001")
 	if err != nil {
 		panic(err)
 	}

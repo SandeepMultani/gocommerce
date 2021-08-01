@@ -6,101 +6,87 @@ import (
 
 	product "github.com/SandeepMultani/gocommerce/src/backend/catalogue-srv/internal/core/product"
 	"github.com/SandeepMultani/gocommerce/src/backend/catalogue-srv/pkg/constants"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type productRepository struct{}
+type productRepository struct {
+	catalogueCollection *mongo.Collection
+}
 
-var (
-	_        product.ProductRepository = &productRepository{}
-	products []product.Product         = []product.Product{
-		{
-			ProductID:   "123",
-			Name:        "Product 123",
-			Sku:         "sku123",
-			Description: "",
-			Price:       4.50,
-			UpsertedAt:  1627771372,
-		},
-		{
-			ProductID: "456",
-			Name:      "Product 456",
-			Sku:       "sku456",
-		},
-		{
-			ProductID: "789",
-			Name:      "Product 789",
-			Sku:       "sku789",
-		},
+var _ product.ProductRepository = &productRepository{}
+
+func NewProductRepository(catalogueCollection *mongo.Collection) product.ProductRepository {
+	return &productRepository{
+		catalogueCollection: catalogueCollection,
 	}
-)
-
-func NewProductRepository() product.ProductRepository {
-	return &productRepository{}
 }
 
 func (repo *productRepository) Get() ([]*product.Product, error) {
 	var prods []*product.Product
-	for _, p := range products {
-		prods = append(prods, &product.Product{
-			ProductID:   p.ProductID,
-			Sku:         p.Sku,
-			Name:        p.Name,
-			Description: p.Description,
-			Price:       p.Price,
-			UpsertedAt:  p.UpsertedAt,
-		})
+	cursor, err := repo.catalogueCollection.Find(context.TODO(), bson.M{})
+	if err != nil {
+		return prods, errors.New(constants.DATABASE_OPERATION_ERROR)
 	}
+
+	for cursor.Next(context.TODO()) {
+		var p product.Product
+		cursor.Decode(&p)
+		prods = append(prods, &p)
+	}
+
 	return prods, nil
 }
 
 func (repo *productRepository) GetById(id string) (*product.Product, error) {
-	pro, exists := repo.exists(id)
+	p, exists, err := repo.exists(id)
 	if !exists {
-		return &product.Product{}, errors.New(constants.PRODUCT_NOT_FOUND)
+		if err == mongo.ErrNoDocuments {
+			return &product.Product{}, errors.New(constants.PRODUCT_NOT_FOUND)
+		}
+		return &product.Product{}, errors.New(constants.DATABASE_OPERATION_ERROR)
 	}
-	return pro, nil
+	return p, nil
 }
 
 func (repo *productRepository) GetBySku(sku string) (*product.Product, error) {
-	pro, exists := repo.skuExists(sku)
+	p, exists, err := repo.skuExists(sku)
 	if !exists {
-		return &product.Product{}, errors.New(constants.PRODUCT_NOT_FOUND)
+		if err == mongo.ErrNoDocuments {
+			return &product.Product{}, errors.New(constants.PRODUCT_NOT_FOUND)
+		}
+		return &product.Product{}, errors.New(constants.DATABASE_OPERATION_ERROR)
 	}
-	return pro, nil
+	return p, nil
 }
 
 func (repo *productRepository) Create(p *product.Product) error {
-	_, exists := repo.skuExists(p.Sku)
+	_, exists, _ := repo.skuExists(p.Sku)
 	if exists {
 		return errors.New(constants.PRODUCT_ALREADY_EXISTS)
 	}
 
-	client, err := getMongoClient()
+	_, err := repo.catalogueCollection.InsertOne(context.TODO(), *p)
 	if err != nil {
-		return err
-	}
-	collection := client.Database(constants.MONGO_CATALOGUE_DB).Collection(constants.MONGO_CATALOGUE_COLLECTION)
-	_, err = collection.InsertOne(context.TODO(), *p)
-	if err != nil {
-		return err
+		return errors.New(constants.DATABASE_OPERATION_ERROR)
 	}
 	return nil
 }
 
-func (repo *productRepository) exists(id string) (*product.Product, bool) {
-	for _, v := range products {
-		if v.ProductID == id {
-			return &v, true
-		}
+func (repo *productRepository) exists(productId string) (*product.Product, bool, error) {
+	p := product.Product{}
+	err := repo.catalogueCollection.FindOne(context.TODO(), bson.M{"product_id": productId}).Decode(&p)
+	if err == nil {
+		return &p, true, nil
 	}
-	return &product.Product{}, false
+	return &product.Product{}, false, err
 }
 
-func (repo *productRepository) skuExists(sku string) (*product.Product, bool) {
-	for _, v := range products {
-		if v.Sku == sku {
-			return &v, true
-		}
+func (repo *productRepository) skuExists(sku string) (*product.Product, bool, error) {
+	p := product.Product{}
+	err := repo.catalogueCollection.FindOne(context.TODO(), bson.M{"sku": sku}).Decode(&p)
+	if err == nil {
+		return &p, true, nil
 	}
-	return &product.Product{}, false
+	return &product.Product{}, false, err
 }
