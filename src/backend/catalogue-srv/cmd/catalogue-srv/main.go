@@ -15,10 +15,12 @@ func main() {
 
 	router := gin.New()
 
-	v1product := router.Group("/v1/product")
+	v1 := router.Group("/v1")
 	{
-		v1product.GET("/sku", productHandler.GetBySku)
-		v1product.GET("/:id", productHandler.Get)
+		v1.GET("/product", productHandler.Get)
+		v1.POST("/product", productHandler.Create)
+		v1.GET("/product/sku", productHandler.GetBySku)
+		v1.GET("/product/:id", productHandler.GetById)
 	}
 
 	err := router.Run(":5001")

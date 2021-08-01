@@ -1,0 +1,45 @@
+version: '3.4'
+
+services:
+    cataloguedb:
+        image: mongo
+        container_name: cataloguedb
+        restart: always
+        environment:
+          MONGO_INITDB_ROOT_USERNAME: catalogrootusr
+          MONGO_INITDB_ROOT_PASSWORD: catalogrootusrpwd
+          MONGO_DATA_DIR: /data/db
+        volumes:
+          - mongodata01:/data/db
+        ports:
+          - "27017:27017"
+    
+    cataloguedbui:
+      image: mongo-express
+      container_name: cataloguedbui
+      restart: always
+      ports:
+        - 8081:8081
+      environment:
+        ME_CONFIG_MONGODB_SERVER: cataloguedb
+        ME_CONFIG_MONGODB_PORT: 27017
+        ME_CONFIG_MONGODB_ADMINUSERNAME: catalogrootusr
+        ME_CONFIG_MONGODB_ADMINPASSWORD: catalogrootusrpwd
+        ME_CONFIG_BASICAUTH_USERNAME: catalogusr
+        ME_CONFIG_BASICAUTH_PASSWORD: catalogusrpwd
+        ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+
+    basketdb:
+        image: redis
+        container_name: basketdb
+        restart: always        
+        volumes:
+          - redis01:/usr/share/redis/data
+        ports:
+          - "6379:6379"
+
+volumes:
+  mongodata01:
+    driver: local
+  redis01:
+    driver: local
