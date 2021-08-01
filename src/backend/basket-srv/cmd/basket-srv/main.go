@@ -9,23 +9,27 @@ import (
 
 func main() {
 
-	basketRepository := repositories.NewBasketRepository()
+	basketRedisDb, err := repositories.GetRedisClient()
+	if err != nil {
+		panic(err)
+	}
+	basketRepository := repositories.NewBasketRepository(basketRedisDb)
 	basketSrv := basket.NewBasketService(basketRepository)
 	basketHandler := handlers.NewBasketHandler(basketSrv)
 
 	router := gin.New()
 
-	v1basket := router.Group("/v1/basket")
+	v1 := router.Group("/v1")
 	{
-		v1basket.GET("/:basketId", basketHandler.Get)
-		v1basket.POST("/:basketId", basketHandler.Create)
-		v1basket.DELETE("/:basketId", basketHandler.Delete)
+		v1.POST("/basket/", basketHandler.Create)
+		v1.GET("/basket/:basketId", basketHandler.Get)
+		v1.DELETE("/basket/:basketId", basketHandler.Delete)
 
-		v1basket.POST("/:basketId/product/:productId", basketHandler.AddItem)
-		v1basket.DELETE("/:basketId/product/:productId", basketHandler.RemoveItem)
+		v1.PUT("/basket/:basketId/add", basketHandler.AddItem)
+		v1.PUT("/basket/:basketId/remove", basketHandler.RemoveItem)
 	}
 
-	err := router.Run(":5002")
+	err = router.Run(":5002")
 	if err != nil {
 		panic(err)
 	}

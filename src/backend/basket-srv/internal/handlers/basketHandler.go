@@ -1,7 +1,12 @@
 package handlers
 
 import (
+	"net/http"
+
 	basket "github.com/SandeepMultani/gocommerce/src/backend/basket-srv/internal/core/basket"
+	"github.com/SandeepMultani/gocommerce/src/backend/basket-srv/pkg/constants"
+	httprequest "github.com/SandeepMultani/gocommerce/src/backend/basket-srv/pkg/httpRequest"
+	httpresponse "github.com/SandeepMultani/gocommerce/src/backend/basket-srv/pkg/httpResponse"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,11 +22,6 @@ type basketHandler struct {
 	basketSrv basket.BasketService
 }
 
-type httpResponse struct {
-	Message string
-	Code    int
-}
-
 var _ BasketHandler = &basketHandler{}
 
 func NewBasketHandler(basketSrv basket.BasketService) BasketHandler {
@@ -31,71 +31,68 @@ func NewBasketHandler(basketSrv basket.BasketService) BasketHandler {
 }
 
 func (hdl *basketHandler) Get(c *gin.Context) {
+	requestId := getRequestHeader(c, constants.HEADER_REQUEST_ID)
 	basketId := c.Param("basketId")
 	bas, err := hdl.basketSrv.Get(basketId)
 	if err != nil {
-		c.JSON(404, httpResponse{
-			Message: err.Error(),
-			Code:    404,
-		})
+		c.JSON(http.StatusNotFound, httpresponse.NewHttpErrorResponse(requestId, err.Error()))
 		return
 	}
-	c.JSON(200, &bas)
+	c.JSON(200, httpresponse.NewHttpSuccessResponse(requestId, bas))
 }
 
 func (hdl *basketHandler) Create(c *gin.Context) {
-	basketId := c.Param("basketId")
-	bas, err := hdl.basketSrv.Create(basketId)
+	requestId := getRequestHeader(c, constants.HEADER_REQUEST_ID)
+	createBasketReq := httprequest.CreateBasketRequest{}
+	c.Bind(&createBasketReq)
+	bas, err := hdl.basketSrv.Create(createBasketReq.BasketId)
 	if err != nil {
-		c.JSON(404, httpResponse{
-			Message: err.Error(),
-			Code:    404,
-		})
+		c.JSON(http.StatusNotFound, httpresponse.NewHttpErrorResponse(requestId, err.Error()))
 		return
 	}
-	c.JSON(200, &bas)
+	c.JSON(200, httpresponse.NewHttpSuccessResponseWithMessage(requestId, bas, constants.BASKET_CREATED))
 }
 
 func (hdl *basketHandler) Delete(c *gin.Context) {
+	requestId := getRequestHeader(c, constants.HEADER_REQUEST_ID)
 	basketId := c.Param("basketId")
 	err := hdl.basketSrv.Delete(basketId)
 	if err != nil {
-		c.JSON(404, httpResponse{
-			Message: err.Error(),
-			Code:    404,
-		})
+		c.JSON(http.StatusNotFound, httpresponse.NewHttpErrorResponse(requestId, err.Error()))
 		return
 	}
-	c.JSON(200, httpResponse{
-		Message: "success",
-		Code:    200,
-	})
+	c.JSON(200, httpresponse.NewHttpSuccessResponseWithMessage(requestId, nil, constants.BASKET_DELETED))
 }
 
 func (hdl *basketHandler) AddItem(c *gin.Context) {
+	requestId := getRequestHeader(c, constants.HEADER_REQUEST_ID)
 	basketId := c.Param("basketId")
-	productId := c.Param("productId")
-	bas, err := hdl.basketSrv.AddItem(basketId, productId)
+	p := &basket.Product{}
+	c.Bind(p)
+	bas, err := hdl.basketSrv.AddItem(basketId, p)
 	if err != nil {
-		c.JSON(404, httpResponse{
-			Message: err.Error(),
-			Code:    404,
-		})
+		c.JSON(http.StatusNotFound, httpresponse.NewHttpErrorResponse(requestId, err.Error()))
 		return
 	}
-	c.JSON(200, bas)
+	c.JSON(200, httpresponse.NewHttpSuccessResponseWithMessage(requestId, bas, constants.ITEM_ADDED))
 }
 
 func (hdl *basketHandler) RemoveItem(c *gin.Context) {
+	requestId := getRequestHeader(c, constants.HEADER_REQUEST_ID)
 	basketId := c.Param("basketId")
-	productId := c.Param("productId")
-	bas, err := hdl.basketSrv.RemoveItem(basketId, productId)
+	removeItemReq := httprequest.RemoveItemRequest{}
+	c.Bind(&removeItemReq)
+	bas, err := hdl.basketSrv.RemoveItem(basketId, removeItemReq.ProductID)
 	if err != nil {
-		c.JSON(404, httpResponse{
-			Message: err.Error(),
-			Code:    404,
-		})
+		c.JSON(http.StatusNotFound, httpresponse.NewHttpErrorResponse(requestId, err.Error()))
 		return
 	}
-	c.JSON(200, bas)
+	c.JSON(200, httpresponse.NewHttpSuccessResponseWithMessage(requestId, bas, constants.ITEM_REMOVED))
+}
+
+func getRequestHeader(c *gin.Context, key string) string {
+	if values := c.Request.Header[key]; len(values) > 0 {
+		return values[0]
+	}
+	return ""
 }

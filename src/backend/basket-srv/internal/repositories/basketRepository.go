@@ -1,117 +1,90 @@
 package repositories
 
 import (
+	"encoding/json"
 	"errors"
+	"time"
 
 	basket "github.com/SandeepMultani/gocommerce/src/backend/basket-srv/internal/core/basket"
+	"github.com/SandeepMultani/gocommerce/src/backend/basket-srv/pkg/constants"
+	"github.com/go-redis/redis"
 )
 
-var (
-	_       basket.BasketRepository = &basketRepository{}
-	baskets []basket.Basket         = []basket.Basket{
-		{
-			ID: "123",
-			Items: []basket.BasketItem{
-				{
-					ID:       "234",
-					Name:     "Apple",
-					Price:    2.50,
-					Quantity: 1,
-				},
-			},
-		},
-	}
-)
+const timeToLive = time.Duration(constants.REDIS_TTL_DAYS*24) * time.Hour
+
+var _ basket.BasketRepository = &basketRepository{}
 
 type basketRepository struct {
+	redis *redis.Client
 }
 
-func NewBasketRepository() basket.BasketRepository {
-	return &basketRepository{}
+func NewBasketRepository(redis *redis.Client) basket.BasketRepository {
+	return &basketRepository{
+		redis: redis,
+	}
 }
 
 func (repo *basketRepository) Get(basketId string) (*basket.Basket, error) {
-	bas, exists := repo.exists(basketId)
-	if !exists {
-		return &basket.Basket{}, errors.New("not found")
+	bas, err := repo.get(basketId)
+	if err != nil {
+		return &basket.Basket{}, errors.New(constants.BASKET_NOT_FOUND)
 	}
 	return bas, nil
 }
 
-func (repo *basketRepository) Create(basketId string) (*basket.Basket, error) {
-	bas, exists := repo.exists(basketId)
-	if exists {
-		return bas, errors.New("already exists")
+func (repo *basketRepository) Create(newBasket *basket.Basket) error {
+	_, err := repo.get(newBasket.ID)
+	if err == nil {
+		return errors.New(constants.BASKET_ALREADY_EXISTS)
 	}
 
-	newBasket := basket.Basket{
-		ID:    basketId,
-		Items: []basket.BasketItem{},
+	err = repo.set(newBasket.ID, *newBasket)
+	if err != nil {
+		return errors.New(constants.DATABASE_OPERATION_ERROR)
 	}
-	baskets = append(baskets, newBasket)
-
-	return &newBasket, nil
+	return nil
 }
 
 func (repo *basketRepository) Delete(basketId string) error {
-	for i, v := range baskets {
-		if v.ID == basketId {
-			baskets = append(baskets[:i], baskets[i+1:]...)
-			break
-		}
+	err := repo.redis.Del(basketId).Err()
+	if err != nil {
+		return errors.New(constants.DATABASE_OPERATION_ERROR)
 	}
 	return nil
 }
 
-func (repo *basketRepository) AddItem(basketId string, productId string) (*basket.Basket, error) {
-	bas, exists := repo.exists(basketId)
-	if !exists {
-		return &basket.Basket{}, errors.New("not found")
-	}
-
-	bas.Items = append(bas.Items, basket.BasketItem{
-		ID:       productId,
-		Quantity: 1,
-	})
-
-	repo.update(basketId, *bas)
-
-	return bas, nil
-}
-
-func (repo *basketRepository) RemoveItem(basketId string, productId string) (*basket.Basket, error) {
-	bas, exists := repo.exists(basketId)
-	if !exists {
-		return &basket.Basket{}, errors.New("not found")
-	}
-
-	for i, v := range bas.Items {
-		if v.ID == productId {
-			bas.Items = append(bas.Items[:i], bas.Items[i+1:]...)
-			break
-		}
-	}
-
-	repo.update(basketId, *bas)
-
-	return bas, nil
-}
-
-func (repo *basketRepository) exists(basketId string) (*basket.Basket, bool) {
-	for _, b := range baskets {
-		if b.ID == basketId {
-			return &b, true
-		}
-	}
-	return &basket.Basket{}, false
-}
-
-func (repo *basketRepository) update(basketId string, updatedBasket basket.Basket) error {
-	for i, b := range baskets {
-		if b.ID == basketId {
-			baskets[i] = updatedBasket
-			break
-		}
+func (repo *basketRepository) Update(b *basket.Basket) error {
+	err := repo.set(b.ID, *b)
+	if err != nil {
+		return errors.New(constants.DATABASE_OPERATION_ERROR)
 	}
 	return nil
+}
+
+func (repo *basketRepository) set(key string, b basket.Basket) error {
+	json, err := json.Marshal(b)
+	if err != nil {
+		return err
+	}
+
+	err = repo.redis.Set(key, json, timeToLive).Err()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (repo *basketRepository) get(key string) (*basket.Basket, error) {
+	val, err := repo.redis.Get(key).Result()
+	if err != nil {
+		return &basket.Basket{}, err
+	}
+
+	b := &basket.Basket{}
+	err = json.Unmarshal([]byte(val), &b)
+	if err != nil {
+		return &basket.Basket{}, err
+	}
+
+	return b, nil
 }
