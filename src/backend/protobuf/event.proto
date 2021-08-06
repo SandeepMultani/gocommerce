@@ -1,0 +1,42 @@
+syntax="proto3";
+
+package event;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "./event";
+
+service IngestService {
+      rpc Ingest (IngestRequest) returns (IngestResponse){}
+}
+
+message IngestRequest {
+      string requestId = 1;
+
+      enum Entity {
+            UNKNOWN_ENTITY = 0;
+            PRODUCT = 1;
+            CATEGORY = 2;
+            BASKET = 3;
+      }
+      Entity entity = 2;
+
+      enum Operation {
+            UNKNOWN_OPERATION = 0;
+            CREATED = 1;
+            UPDATED = 2;
+            DELETED = 3;
+      }
+      Operation operation = 3;
+
+      string payload = 4;
+      google.protobuf.Timestamp timestamp = 5;
+}
+
+message IngestResponse {
+      string requestId = 1;
+      google.protobuf.BoolValue isSuccessful = 2;
+      string message = 3;
+      google.protobuf.Timestamp timestamp = 4;
+}

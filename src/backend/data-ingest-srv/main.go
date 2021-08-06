@@ -6,8 +6,8 @@ import (
 	"log"
 	"net"
 
-	event "github.com/SandeepMultani/gocommerce/src/backend/data-ingest-srv/protobuf/event"
 	"github.com/SandeepMultani/gocommerce/src/backend/data-ingest-srv/server"
+	event "github.com/SandeepMultani/gocommerce/src/backend/protobuf/event"
 	"google.golang.org/grpc"
 )
 
