@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	event "github.com/SandeepMultani/gocommerce/src/backend/data-ingest-srv/protobuf/event"
+	event "github.com/SandeepMultani/gocommerce/src/backend/protobuf/event"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
