@@ -20,6 +20,9 @@ func NewIngestServer() event.IngestServiceServer {
 }
 
 func (srv *ingestService) Ingest(context context.Context, req *event.IngestRequest) (*event.IngestResponse, error) {
+	println("request from rpc client: payload - ", req.Payload)
+	println("request from rpc client: ", req)
+
 	return &event.IngestResponse{
 		RequestId:    req.RequestId,
 		IsSuccessful: &wrappers.BoolValue{Value: true},

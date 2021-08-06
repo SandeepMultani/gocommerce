@@ -2,12 +2,15 @@ package main
 
 import (
 	"github.com/SandeepMultani/gocommerce/src/backend/catalogue-srv/internal/core/product"
+	dataingest "github.com/SandeepMultani/gocommerce/src/backend/catalogue-srv/internal/dataingest"
 	"github.com/SandeepMultani/gocommerce/src/backend/catalogue-srv/internal/handlers"
 	"github.com/SandeepMultani/gocommerce/src/backend/catalogue-srv/internal/repositories"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+
+	dataingest.Ingest()
 
 	catalogueCollection, err := repositories.GetCatalogueCollection()
 	if err != nil {
